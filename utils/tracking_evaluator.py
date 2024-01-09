@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error, mean_absolute_error 
+from sklearn.metrics import mean_squared_error, mean_absolute_error, explained_variance_score, r2_score 
 from sklearn.linear_model import RANSACRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
 
@@ -140,6 +140,14 @@ class TrackingEvaluator:
         plt.plot(self.x, self.y_hat, 'r-')
         plt.legend(['Outliers', 'Inliers', self.fitter_type+' estimated curve'])
         plt.show()
+
         
+    def accuracy(self):
+        # mse = mean_squared_error(self.y_hat, self.y)
+        # var_y = np.var(self.y_hat)
+        # nmse = 1-(mse/var_y)
+        # return nmse
+        # return explained_variance_score(self.y_hat, self.y)
+        return r2_score(self.y_hat,self.y)
 
     
