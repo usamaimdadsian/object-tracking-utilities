@@ -142,12 +142,22 @@ class TrackingEvaluator:
         plt.show()
 
         
-    def accuracy(self):
+    def accuracy(self,threshold=5):
         # mse = mean_squared_error(self.y_hat, self.y)
         # var_y = np.var(self.y_hat)
         # nmse = 1-(mse/var_y)
         # return nmse
         # return explained_variance_score(self.y_hat, self.y)
-        return r2_score(self.y_hat,self.y)
+        # return r2_score(self.y_hat,self.y)
+        distances = np.abs(self.y - self.y_hat)
+        accuracy_list = []
+        for dist in distances:
+            if dist > threshold:
+                accuracy_list.append(0)
+            else:
+                accuracy_list.append(1)
+        accuracy_list = np.array(accuracy_list)
+        return np.mean(accuracy_list)
+
 
     
