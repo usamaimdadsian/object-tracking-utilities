@@ -9,9 +9,11 @@ class PolynomialRegression(object):
         self.degree = degree
         self.coeffs = coeffs
 
-    def fit(self, X, y):
+    def fit(self, X, y, residual_threshold=5.0):
+        self.X, self.y = X,y
+        self. residual_threshold = residual_threshold
         self.coeffs = np.polyfit(X.ravel(), y, self.degree)
-
+        
     def get_params(self, deep=False):
         return {'coeffs': self.coeffs}
 
@@ -21,6 +23,10 @@ class PolynomialRegression(object):
     def predict(self, X):
         poly_eqn = np.poly1d(self.coeffs)
         y_hat = poly_eqn(X.ravel())
+        
+        self.residuals = self.y - y_hat
+        self.inlier_mask_ = np.abs(self.residuals) < self.residual_threshold
+
         return y_hat
 
     def score(self, X, y):
@@ -62,7 +68,7 @@ class TrackingEvaluator:
             self.model = RANSACRegressor(GaussianProcessRegressor(),
                          residual_threshold=np.std(self.y), min_samples=self.x.shape[0])
         elif (fitter_type == "polynomial"):
-            print("Model not implemented yet")
+            self.model = PolynomialRegression(degree=poly_degree)
         else:
             raise Exception("fitter type can be one of these ransac, ransac_polynomial, ransac_gaussian, polynomial")
 
@@ -113,7 +119,7 @@ class TrackingEvaluator:
         return self.y_hat
 
     """
-        :param type: mse, mae, custom
+        :param err_type: mse, mae, custom
     """ 
     def calc_error(self,err_type):
         if err_type == "mse":
