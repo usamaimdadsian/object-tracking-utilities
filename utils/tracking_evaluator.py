@@ -130,31 +130,44 @@ class TrackingEvaluator:
     """
         :param err_type: mse, mae, custom
     """ 
-    def calc_error(self,err_type):
+    def calc_error(self,err_type, x_noise=None, y_noise=None):
+        positions = self.positions.copy()
+        if x_noise:
+            positions[:,0] += np.random.normal(0, x_noise)
+        if y_noise:    
+            positions[:,1] += np.random.normal(0,y_noise) 
+        self.noise_positions = positions
+
         if err_type == "mse":
-            return mean_squared_error(self.predictions, self.positions) 
+            return mean_squared_error(self.predictions, positions) 
         elif err_type == "mae":
-            return mean_absolute_error(self.predictions, self.positions) 
+            return mean_absolute_error(self.predictions, positions) 
         elif err_type == "custom":
-            return np.mean(np.linalg.norm(self.predictions - self.positions, axis=1))
+            return np.mean(np.linalg.norm(self.predictions - positions, axis=1))
         else:
             raise Exception("Incorrect err_type, it should mse, mae or cutom")
 
-    def visualize(self):
+    def visualize(self, draw_noisy = False):
         
         plt.figure(figsize=(12, 4), dpi=150)
         plt.title("Polynomial Fitting with "+self.fitter_type)
+
+        legend_array = []
+        if draw_noisy:
+            plt.plot(self.noise_positions[:,0],self.noise_positions[:,1],'mx')
+            legend_array.append("Noisy points")
         plt.plot(self.x, self.y, 'bo')
         # plt.plot(self.x[self.inlier_mask], self.y[self.inlier_mask], 'go')
         plt.plot(self.x, self.y_hat,'r-')
         plt.plot(self.x_hat, self.y, 'g-')
 
         plt.plot(self.x_predicted, self.y_predicted,'y-')
-        plt.legend(['Points', 'Poly x constant', 'Poly y constant','Average Predicted Poly'])
+
+        plt.legend(legend_array+['Points', 'Poly x constant', 'Poly y constant','Average Predicted Poly'])
         plt.show()
 
         
-    def accuracy(self,threshold=5):
+    def accuracy(self,threshold=5,x_noise=None, y_noise=None):
         # mse = mean_squared_error(self.y_hat, self.y)
         # var_y = np.var(self.y_hat)
         # nmse = 1-(mse/var_y)
@@ -162,13 +175,20 @@ class TrackingEvaluator:
         # return explained_variance_score(self.y_hat, self.y)
         # return r2_score(self.y_hat,self.y)
         # distances = np.abs(self.y - self.y_hat)
-        distances = np.linalg.norm(self.predictions - self.positions, axis=1)
+        positions = self.positions.copy()
+        if x_noise:
+            positions[:,0] += np.random.normal(0, x_noise)
+        if y_noise:    
+            positions[:,1] += np.random.normal(0,y_noise) 
+ 
+        distances = np.linalg.norm(self.predictions - positions, axis=1)
         accuracy_list = []
         for dist in distances:
             if dist > threshold:
                 accuracy_list.append(0)
             else:
                 accuracy_list.append(1)
+        self.noise_positions = positions
         accuracy_list = np.array(accuracy_list)
         return np.mean(accuracy_list)
 
