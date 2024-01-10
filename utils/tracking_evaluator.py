@@ -59,16 +59,17 @@ class TrackingEvaluator:
 
         
         if (fitter_type == "ransac"):
-            self.model = RANSACRegressor(random_state=0)
+            self.model_x = RANSACRegressor(random_state=0)
+            self.model_y = RANSACRegressor(random_state=0)
         elif (fitter_type == "ransac_polynomial"):
-            self.model = RANSACRegressor(PolynomialRegression(degree=poly_degree),
-                         residual_threshold=2 * np.std(self.y),
-                         random_state=0, min_samples=self.x.shape[0]) 
+            self.model_x = RANSACRegressor(PolynomialRegression(degree=poly_degree),residual_threshold=2 * np.std(self.y),min_samples=self.x.shape[0]) 
+            self.model_y = RANSACRegressor(PolynomialRegression(degree=poly_degree),residual_threshold=2*np.std(self.x),min_samples=self.y.shape[0])
         elif (fitter_type == "ransac_gaussian"):
-            self.model = RANSACRegressor(GaussianProcessRegressor(),
-                         residual_threshold=np.std(self.y), min_samples=self.x.shape[0])
+            self.model_x = RANSACRegressor(GaussianProcessRegressor(),residual_threshold=np.std(self.y), min_samples=self.x.shape[0])
+            self.model_y = RANSACRegressor(GaussianProcessRegressor(),residual_threshold=np.std(self.x), min_samples=self.y.shape[0])
         elif (fitter_type == "polynomial"):
-            self.model = PolynomialRegression(degree=poly_degree)
+            self.model_x = PolynomialRegression(degree=poly_degree)
+            self.model_y = PolynomialRegression(degree=poly_degree)
         else:
             raise Exception("fitter type can be one of these ransac, ransac_polynomial, ransac_gaussian, polynomial")
 
@@ -103,31 +104,39 @@ class TrackingEvaluator:
             else:
                 raise Exception("tracking_pos should be center, top_left, top_right, bottom_left or bottom_right")
             positions.append(point)
-        positions = np.array(positions)
+        self.positions = np.array(positions)
 
-        self.x = positions[:,0]
-        self.y = positions[:,1]
+        self.x = self.positions[:,0]
+        self.y = self.positions[:,1]
 
     def fit(self):
         self.X = np.expand_dims(self.x, axis=1)
-        self.model.fit(self.X,self.y)
+        self.Y = np.expand_dims(self.y, axis=1)
+
+        self.model_x.fit(self.X,self.y)
+        self.model_y.fit(self.Y,self.x)
 
         
     def predict(self):
-        self.y_hat = self.model.predict(self.X)
-        self.inlier_mask = self.model.inlier_mask_
-        return self.y_hat
+        self.y_hat = self.model_x.predict(self.X)
+        self.x_hat = self.model_y.predict(self.Y)
+
+        self.x_predicted = (self.x + self.x_hat)/2
+        self.y_predicted = (self.y + self.y_hat)/2
+        self.predictions = np.column_stack((self.x_predicted, self.y_predicted)) 
+        # self.inlier_mask = self.model.inlier_mask_
+        return self.predictions 
 
     """
         :param err_type: mse, mae, custom
     """ 
     def calc_error(self,err_type):
         if err_type == "mse":
-            return mean_squared_error(self.y_hat, self.y) 
+            return mean_squared_error(self.predictions, self.positions) 
         elif err_type == "mae":
-            return mean_absolute_error(self.y_hat, self.y) 
+            return mean_absolute_error(self.predictions, self.positions) 
         elif err_type == "custom":
-            return np.mean(np.abs(self.y - self.y_hat))
+            return np.mean(np.linalg.norm(self.predictions - self.positions, axis=1))
         else:
             raise Exception("Incorrect err_type, it should mse, mae or cutom")
 
@@ -135,10 +144,13 @@ class TrackingEvaluator:
         
         plt.figure(figsize=(12, 4), dpi=150)
         plt.title("Polynomial Fitting with "+self.fitter_type)
-        plt.plot(self.x, self.y, 'bx')
-        plt.plot(self.x[self.inlier_mask], self.y[self.inlier_mask], 'go')
-        plt.plot(self.x, self.y_hat, 'r-')
-        plt.legend(['Outliers', 'Inliers', self.fitter_type+' estimated curve'])
+        plt.plot(self.x, self.y, 'bo')
+        # plt.plot(self.x[self.inlier_mask], self.y[self.inlier_mask], 'go')
+        plt.plot(self.x, self.y_hat,'r-')
+        plt.plot(self.x_hat, self.y, 'g-')
+
+        plt.plot(self.x_predicted, self.y_predicted,'y-')
+        plt.legend(['Points', 'Poly x constant', 'Poly y constant','Average Predicted Poly'])
         plt.show()
 
         
@@ -149,7 +161,8 @@ class TrackingEvaluator:
         # return nmse
         # return explained_variance_score(self.y_hat, self.y)
         # return r2_score(self.y_hat,self.y)
-        distances = np.abs(self.y - self.y_hat)
+        # distances = np.abs(self.y - self.y_hat)
+        distances = np.linalg.norm(self.predictions - self.positions, axis=1)
         accuracy_list = []
         for dist in distances:
             if dist > threshold:
