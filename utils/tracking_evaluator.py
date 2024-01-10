@@ -133,9 +133,9 @@ class TrackingEvaluator:
     def calc_error(self,err_type, x_noise=None, y_noise=None):
         positions = self.positions.copy()
         if x_noise:
-            positions[:,0] += np.random.normal(0, x_noise)
+            positions[:,0] += np.random.normal(0, x_noise, size=self.positions[:,0].shape)
         if y_noise:    
-            positions[:,1] += np.random.normal(0,y_noise) 
+            positions[:,1] += np.random.normal(0,y_noise, size=self.positions[:,1].shape) 
         self.noise_positions = positions
 
         if err_type == "mse":
@@ -177,9 +177,9 @@ class TrackingEvaluator:
         # distances = np.abs(self.y - self.y_hat)
         positions = self.positions.copy()
         if x_noise:
-            positions[:,0] += np.random.normal(0, x_noise)
+            positions[:,0] += np.random.normal(0, x_noise, size=self.positions[:,0].shape )
         if y_noise:    
-            positions[:,1] += np.random.normal(0,y_noise) 
+            positions[:,1] += np.random.normal(0,y_noise, size= self.positions[:,1].shape) 
  
         distances = np.linalg.norm(self.predictions - positions, axis=1)
         accuracy_list = []
